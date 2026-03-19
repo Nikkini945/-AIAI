@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>野球育成ガチャゲーム</title>
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #0b3d91;
+  color: white;
+}
+
+h1 { margin-top: 20px; }
+
+.container {
+  margin: 20px auto;
+  width: 350px;
+  background: rgba(255,255,255,0.1);
+  padding: 20px;
+  border-radius: 15px;
+}
+
+button {
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background: gold;
+  cursor: pointer;
+}
+
+#player {
+  margin-top: 15px;
+  font-size: 18px;
+}
+
+.log {
+  margin-top: 15px;
+  height: 120px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<h1>⚾ 野球育成ガチャ ⚾</h1>
+
+<div class="container">
+  <button onclick="drawGacha()">ガチャ</button>
+  <button onclick="train()">トレーニング</button>
+  <button onclick="match()">試合</button>
+
+  <div id="player">選手がいません</div>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+let player = null;
+
+const players = [
+  {name:"新人投手", speed:110, control:40, rate:50},
+  {name:"有望投手", speed:120, control:50, rate:30},
+  {name:"エース候補", speed:130, control:60, rate:15},
+  {name:"怪物投手", speed:140, control:70, rate:5}
+];
+
+function log(text){
+  const logDiv = document.getElementById("log");
+  logDiv.innerHTML = text + "<br>" + logDiv.innerHTML;
+}
+
+function drawGacha(){
+  let rand = Math.random()*100;
+  let sum = 0;
+
+  for(let p of players){
+    sum += p.rate;
+    if(rand <= sum){
