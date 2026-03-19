@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>野球育成ガチャゲーム（10連対応）</title>
+<title>野球育成ガチャゲーム（失敗あり）</title>
 <style>
 body {
   font-family: Arial;
@@ -15,10 +15,11 @@ h1 { margin-top: 20px; }
 
 .container {
   margin: 20px auto;
-  width: 400px;
+  width: 500px;
   background: rgba(255,255,255,0.1);
   padding: 20px;
   border-radius: 15px;
+  position: relative;
 }
 
 button {
@@ -31,7 +32,7 @@ button {
   cursor: pointer;
 }
 
-#player {
+#playerInfo {
   margin-top: 15px;
   font-size: 18px;
 }
@@ -45,26 +46,44 @@ button {
   border-radius: 10px;
   font-size: 14px;
 }
+
+#gameArea {
+  margin-top: 20px;
+  width: 100%;
+  height: 200px;
+  background: #0a1d3c;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.playerImg, .ballImg {
+  position: absolute;
+}
 </style>
 </head>
 <body>
 
-<h1>⚾ 野球育成ガチャ（10連対応） ⚾</h1>
+<h1>⚾ 野球育成ガチャゲーム（失敗あり） ⚾</h1>
 
 <div class="container">
   <button onclick="drawGacha()">単発ガチャ</button>
   <button onclick="drawTenGacha()">10連ガチャ</button>
   <button onclick="train()">トレーニング</button>
-  <button onclick="match()">試合</button>
+  <button onclick="startMatch()">試合開始</button>
 
-  <div id="player">選手がいません</div>
-
+  <div id="playerInfo">選手がいません</div>
   <div class="log" id="log"></div>
+
+  <div id="gameArea">
+    <img id="pitcherImg" class="playerImg" src="pitcher.png" style="left:50px; bottom:20px; width:60px;">
+    <img id="batterImg" class="playerImg" src="batter.png" style="right:50px; bottom:20px; width:60px;">
+    <img id="ballImg" class="ballImg" src="ball.png" style="left:90px; bottom:60px; width:20px; display:none;">
+  </div>
 </div>
 
 <script>
 let player = null;
-
 const players = [
   {name:"新人投手", speed:110, control:40, rate:50},
   {name:"有望投手", speed:120, control:50, rate:30},
@@ -75,6 +94,12 @@ const players = [
 function log(text){
   const logDiv = document.getElementById("log");
   logDiv.innerHTML = text + "<br>" + logDiv.innerHTML;
+}
+
+function updatePlayer(){
+  if(!player) return;
+  document.getElementById("playerInfo").innerHTML =
+    `名前: ${player.name}<br>球速: ${player.speed} km/h<br>コントロール: ${player.control}`;
 }
 
 function drawGacha(){
@@ -108,32 +133,86 @@ function drawTenGacha(){
   }
 }
 
-function updatePlayer(){
-  if(!player) return;
-  document.getElementById("player").innerHTML =
-    `名前: ${player.name}<br>球速: ${player.speed} km/h<br>コントロール: ${player.control}`;
-}
-
 function train(){
   if(!player){ log("選手がいない！"); return; }
-  let upSpeed = Math.floor(Math.random()*3);
-  let upControl = Math.floor(Math.random()*3);
-  player.speed += upSpeed;
-  player.control += upControl;
+  if(Math.random() < 0.5){
+    // 成功
+    let upSpeed = Math.floor(Math.random()*3);
+    let upControl = Math.floor(Math.random()*3);
+    player.speed += upSpeed;
+    player.control += upControl;
+    log(`💪 トレーニング成功！（球速+${upSpeed}, 制球+${upControl}）`);
+  } else {
+    // 失敗
+    let downSpeed = Math.floor(Math.random()*2)+1;
+    let downControl = Math.floor(Math.random()*2)+1;
+    player.speed = Math.max(0, player.speed - downSpeed);
+    player.control = Math.max(0, player.control - downControl);
+    log(`😢 トレーニング失敗...（球速-${downSpeed}, 制球-${downControl}）`);
+  }
   updatePlayer();
-  log("💪 トレーニング成功！（球速+"+upSpeed+", 制球+"+upControl+")");
 }
 
-function match(){
+function startMatch(){
   if(!player){ log("選手がいない！"); return; }
-  let power = player.speed + player.control;
-  let enemy = Math.random()*200;
-  if(power > enemy){
-    log("🏆 試合勝利！さらに成長！");
+  log("⚾ 試合開始！投球中...");
+  throwBall();
+}
+
+function throwBall(){
+  const ball = document.getElementById("ballImg");
+  let y = 60;
+  ball.style.bottom = y + "px";
+  ball.style.left = "90px";
+  ball.style.display = "block";
+
+  const interval = setInterval(()=>{
+    y += 4;
+    ball.style.bottom = y + "px";
+    if(y > 150){
+      clearInterval(interval);
+      log("🏏 打者がボールを打つタイミング！クリックで打撃");
+      ball.style.display = "none";
+    }
+  },20);
+}
+
+document.getElementById("gameArea").addEventListener("click", ()=>{
+  if(!player) return;
+  hitBall();
+});
+
+function hitBall(){
+  const ball = document.getElementById("ballImg");
+  ball.style.display = "block";
+  let x = 90;
+  let y = 150;
+
+  const interval = setInterval(()=>{
+    x += 5;
+    y += 2;
+    ball.style.left = x + "px";
+    ball.style.bottom = y + "px";
+    if(x > 400){
+      clearInterval(interval);
+      ball.style.display = "none";
+      log("試合結果を判定中...");
+      matchResult();
+    }
+  },20);
+}
+
+function matchResult(){
+  if(Math.random() < 0.5){
+    // 勝利
     player.speed += 2;
     player.control += 2;
+    log("🎉 勝利！選手が成長した！");
   } else {
-    log("😢 試合敗北...");
+    // 敗北
+    player.speed = Math.max(0, player.speed - 2);
+    player.control = Math.max(0, player.control - 2);
+    log("😢 敗北...能力が少し下がった");
   }
   updatePlayer();
 }
