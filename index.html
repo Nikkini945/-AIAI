@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>BlockSurvivor 2.0</title>
+<title>BlockSurvivor 4.0</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#87CEEB; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; overflow:hidden; }
@@ -14,7 +14,7 @@
 <body>
 <canvas id="gameCanvas" width="800" height="400"></canvas>
 <div id="score">Score: 0</div>
-<div id="title">BlockSurvivor 2.0</div>
+<div id="title">BlockSurvivor 4.0</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -27,7 +27,7 @@ let spawnTimer = 0;
 let itemTimer = 0;
 let difficultyThreshold = 20;
 let enemySpeed = 2;
-let enemySpawnRate = 180; 
+let enemySpawnRate = 180;
 let items = [];
 let enemies = [];
 let bullets = [];
@@ -42,15 +42,12 @@ document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
 function drawPlayer(x,y){
-  // 丸っぽい頭
   ctx.fillStyle = player.color;
   ctx.beginPath();
   ctx.arc(x+15,y+10,10,0,Math.PI*2);
   ctx.fill();
-  // 体（角丸）
   ctx.fillStyle = player.color;
   ctx.fillRect(x+5, y+20, 20, 30);
-  // 目
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   ctx.arc(x+10,y+10,3,0,Math.PI*2);
@@ -61,15 +58,12 @@ function drawPlayer(x,y){
 }
 
 function drawEnemy(e){
-  // 丸頭
   ctx.fillStyle = e.color;
   ctx.beginPath();
   ctx.arc(e.x+15,e.y+10,10,0,Math.PI*2);
   ctx.fill();
-  // 体
   ctx.fillStyle = e.color;
   ctx.fillRect(e.x+5,e.y+20,20,30);
-  // 目
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   ctx.arc(e.x+10,e.y+10,3,0,Math.PI*2);
@@ -86,7 +80,7 @@ function update(){
   ctx.fillStyle='#654321';
   ctx.fillRect(0,canvas.height-50,canvas.width,50);
 
-  // プレイヤー移動
+  // プレイヤー横移動
   if((keys['a'] || keys['arrowleft']) && player.x>0) player.x -= player.speed;
   if((keys['d'] || keys['arrowright']) && player.x + player.width < canvas.width) player.x += player.speed;
   if((keys['w'] || keys['arrowup']) && player.onGround){
@@ -109,38 +103,36 @@ function update(){
   if(spawnTimer > enemySpawnRate){
     spawnTimer=0;
     const yPos = canvas.height-50-50;
-    enemies.push({x:canvas.width, y:yPos, color:'#5555FF', shootTimer:0, dy:Math.random()*2-1});
+    enemies.push({x:canvas.width, y:yPos, color:'#5555FF', shootTimer:0});
   }
 
-  // アイテム生成（キャラが取りやすい範囲）
+  // アイテム生成
   itemTimer++;
   if(itemTimer>400){
     itemTimer=0;
     const xPos = Math.random()*(canvas.width-30)+50;
     const yPos = canvas.height-50-50- Math.random()*50;
     const fruitTypes = [
-      {color:'red', score:5}, // リンゴ
-      {color:'yellow', score:3}, // バナナ
-      {color:'purple', score:7} // ブドウ
+      {color:'red', score:5},
+      {color:'yellow', score:3},
+      {color:'purple', score:7}
     ];
     const fruit = fruitTypes[Math.floor(Math.random()*fruitTypes.length)];
     items.push({x:xPos, y:yPos, width:20, height:20, color:fruit.color, score:fruit.score});
   }
 
-  // 難易度調整
+  // 難易度アップ
   if(Math.floor(score) >= difficultyThreshold){
     difficultyThreshold += 20;
     enemySpeed += 0.5;
     if(enemySpawnRate > 40) enemySpawnRate -=10;
   }
 
-  // 敵処理
+  // 敵処理（横移動だけ）
   for(let i=enemies.length-1;i>=0;i--){
     const e = enemies[i];
     e.x -= enemySpeed;
-    e.y += e.dy; // ランダム上下動
-    if(e.y<50) e.dy=Math.abs(e.dy);
-    if(e.y>canvas.height-50-50) e.dy=-Math.abs(e.dy);
+    e.y = canvas.height-50-50; // 高さ固定
 
     e.shootTimer++;
     if(e.shootTimer > 90){
@@ -192,7 +184,6 @@ function update(){
     }
   }
 
-  // スコア
   score +=0.02;
   document.getElementById('score').innerText = 'Score: '+Math.floor(score);
 
