@@ -2,231 +2,121 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>野球育成ガチャゲーム（全画面試合版）</title>
+<title>障害物競走</title>
 <style>
 body {
-  font-family: Arial;
-  text-align: center;
   margin: 0;
   padding: 0;
-  background: #0b3d91;
-  color: white;
-  overflow-x: hidden;
+  background: #87CEEB;
+  font-family: Arial, sans-serif;
+  text-align: center;
 }
-
-h1 { margin-top: 20px; }
-
-.container, #matchScreen {
-  width: 100%;
-  height: 100vh;
+#gameArea {
+  width: 400px;
+  height: 600px;
+  margin: 20px auto;
+  background: #F5F5DC;
   position: relative;
-}
-
-.container {
-  display: block;
-  background: rgba(255,255,255,0.1);
-}
-
-button {
-  margin: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 10px;
-  background: gold;
-  cursor: pointer;
-}
-
-#playerInfo {
-  margin-top: 15px;
-  font-size: 18px;
-}
-
-.log {
-  margin-top: 15px;
-  height: 180px;
-  overflow-y: auto;
-  background: rgba(0,0,0,0.3);
-  padding: 10px;
-  border-radius: 10px;
-  font-size: 14px;
-}
-
-#gameArea, #matchArea {
-  margin-top: 20px;
-  width: 100%;
-  height: 200px;
-  background: #0a1d3c;
-  position: relative;
-  border-radius: 10px;
+  border: 2px solid #333;
   overflow: hidden;
 }
-
-.playerImg, .ballImg {
+.player {
+  width: 40px;
+  height: 40px;
+  background: red;
   position: absolute;
+  bottom: 10px;
+  left: 180px;
+  border-radius: 5px;
+}
+.obstacle {
+  width: 40px;
+  height: 40px;
+  background: brown;
+  position: absolute;
+  top: 0;
+  border-radius: 5px;
+}
+#score {
+  font-size: 20px;
+  margin-top: 10px;
 }
 </style>
 </head>
 <body>
-
-<div id="mainScreen" class="container">
-<h1>⚾ 野球育成ガチャゲーム（全画面試合版） ⚾</h1>
-  <button onclick="drawGacha()">単発ガチャ</button>
-  <button onclick="drawTenGacha()">10連ガチャ</button>
-  <button onclick="train()">トレーニング</button>
-  <button onclick="startMatchFullScreen()">試合開始</button>
-
-  <div id="playerInfo">選手がいません</div>
-  <div class="log" id="log"></div>
+<h1>校舎避けゲーム</h1>
+<div id="score">スコア: 0</div>
+<div id="gameArea">
+  <div id="player" class="player"></div>
 </div>
-
-<div id="matchScreen" style="display:none; background:#0a1d3c;">
-  <button onclick="endMatch()" style="position:absolute; top:10px; right:10px; z-index:100;">終了</button>
-  <div id="matchArea" style="width:100%; height:100%; position:relative;">
-    <img id="pitcherImg" class="playerImg" src="pitcher.png" style="left:50px; bottom:20px; width:80px;">
-    <img id="batterImg" class="playerImg" src="batter.png" style="right:50px; bottom:20px; width:80px;">
-    <img id="ballImg" class="ballImg" src="ball.png" style="left:90px; bottom:60px; width:20px; display:none;">
-  </div>
-</div>
-
 <script>
-let player = null;
-const players = [
-  {name:"新人投手", speed:110, control:40, rate:50},
-  {name:"有望投手", speed:120, control:50, rate:30},
-  {name:"エース候補", speed:130, control:60, rate:15},
-  {name:"怪物投手", speed:140, control:70, rate:5}
-];
+const gameArea = document.getElementById('gameArea');
+const player = document.getElementById('player');
+let playerPos = 180;
+let score = 0;
+let obstacles = [];
+let gameOver = false;
 
-function log(text){
-  const logDiv = document.getElementById("log");
-  logDiv.innerHTML = text + "<br>" + logDiv.innerHTML;
+// 障害物生成
+function createObstacle(){
+  const obs = document.createElement('div');
+  obs.className = 'obstacle';
+  obs.style.left = Math.floor(Math.random()*360) + 'px';
+  obs.style.top = '0px';
+  gameArea.appendChild(obs);
+  obstacles.push(obs);
 }
 
-function updatePlayer(){
-  if(!player) return;
-  document.getElementById("playerInfo").innerHTML =
-    `名前: ${player.name}<br>球速: ${player.speed} km/h<br>コントロール: ${player.control}`;
-}
+// 障害物移動
+function moveObstacles(){
+  for(let i=0;i<obstacles.length;i++){
+    let obs = obstacles[i];
+    let top = parseInt(obs.style.top);
+    top += 4;
+    obs.style.top = top + 'px';
 
-function drawGacha(){
-  let rand = Math.random()*100;
-  let sum = 0;
-  for(let p of players){
-    sum += p.rate;
-    if(rand <= sum){
-      player = {...p};
-      updatePlayer();
-      log("🎉 " + p.name + "を獲得！");
-      break;
+    // 衝突判定
+    let playerTop = parseInt(player.style.bottom);
+    let playerLeft = playerPos;
+    let obsLeft = parseInt(obs.style.left);
+    let obsBottom = 600 - top - 40; // ゲームエリアの高さから計算
+
+    if(obsBottom < playerTop + 40 && obsBottom + 40 > playerTop && obsLeft < playerLeft + 40 && obsLeft + 40 > playerLeft){
+      gameOver = true;
+    }
+
+    // 画面外ならスコア加算
+    if(top > 600){
+      obs.remove();
+      obstacles.splice(i,1);
+      i--;
+      if(!gameOver) score++;
     }
   }
+  document.getElementById('score').innerText = 'スコア: '+score;
 }
 
-function drawTenGacha(){
-  log("🔹 10連ガチャ開始 🔹");
-  for(let i=0;i<10;i++){
-    let rand = Math.random()*100;
-    let sum = 0;
-    for(let p of players){
-      sum += p.rate;
-      if(rand <= sum){
-        player = {...p};
-        updatePlayer();
-        log(`(${i+1}) ${p.name} を獲得！`);
-        break;
-      }
-    }
+// キー操作
+document.addEventListener('keydown', e => {
+  if(e.key === 'ArrowLeft'){
+    playerPos = Math.max(0, playerPos-20);
+    player.style.left = playerPos+'px';
+  } else if(e.key === 'ArrowRight'){
+    playerPos = Math.min(360, playerPos+20);
+    player.style.left = playerPos+'px';
   }
-}
-
-function train(){
-  if(!player){ log("選手がいない！"); return; }
-  if(Math.random() < 0.5){
-    let upSpeed = Math.floor(Math.random()*3);
-    let upControl = Math.floor(Math.random()*3);
-    player.speed += upSpeed;
-    player.control += upControl;
-    log(`💪 トレーニング成功！（球速+${upSpeed}, 制球+${upControl}）`);
-  } else {
-    let downSpeed = Math.floor(Math.random()*2)+1;
-    let downControl = Math.floor(Math.random()*2)+1;
-    player.speed = Math.max(0, player.speed - downSpeed);
-    player.control = Math.max(0, player.control - downControl);
-    log(`😢 トレーニング失敗...（球速-${downSpeed}, 制球-${downControl}）`);
-  }
-  updatePlayer();
-}
-
-function startMatchFullScreen(){
-  if(!player){ log("選手がいない！"); return; }
-  document.getElementById("mainScreen").style.display = "none";
-  document.getElementById("matchScreen").style.display = "block";
-  log("⚾ 試合開始！投球中...");
-  throwBall();
-}
-
-function endMatch(){
-  document.getElementById("matchScreen").style.display = "none";
-  document.getElementById("mainScreen").style.display = "block";
-}
-
-function throwBall(){
-  const ball = document.getElementById("ballImg");
-  let y = 60;
-  ball.style.bottom = y + "px";
-  ball.style.left = "90px";
-  ball.style.display = "block";
-
-  const interval = setInterval(()=>{
-    y += 4;
-    ball.style.bottom = y + "px";
-    if(y > 150){
-      clearInterval(interval);
-      log("🏏 打者がボールを打つタイミング！クリックで打撃");
-      ball.style.display = "none";
-    }
-  },20);
-}
-
-document.getElementById("matchArea").addEventListener("click", ()=>{
-  if(!player) return;
-  hitBall();
 });
 
-function hitBall(){
-  const ball = document.getElementById("ballImg");
-  ball.style.display = "block";
-  let x = 90;
-  let y = 150;
-
-  const interval = setInterval(()=>{
-    x += 5;
-    y += 2;
-    ball.style.left = x + "px";
-    ball.style.bottom = y + "px";
-    if(x > window.innerWidth){
-      clearInterval(interval);
-      ball.style.display = "none";
-      log("試合結果を判定中...");
-      matchResult();
-    }
-  },20);
-}
-
-function matchResult(){
-  if(Math.random() < 0.5){
-    player.speed += 2;
-    player.control += 2;
-    log("🎉 勝利！選手が成長した！");
+// ゲームループ
+function gameLoop(){
+  if(!gameOver){
+    moveObstacles();
+    if(Math.random() < 0.02) createObstacle();
+    requestAnimationFrame(gameLoop);
   } else {
-    player.speed = Math.max(0, player.speed - 2);
-    player.control = Math.max(0, player.control - 2);
-    log("😢 敗北...能力が少し下がった");
+    alert('ゲームオーバー! スコア: '+score);
+    location.reload();
   }
-  updatePlayer();
 }
-</script>
 
-</body>
-</html>
+gameLoop();
