@@ -2,24 +2,29 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>野球育成ガチャゲーム（失敗あり）</title>
+<title>野球育成ガチャゲーム（全画面試合版）</title>
 <style>
 body {
   font-family: Arial;
   text-align: center;
+  margin: 0;
+  padding: 0;
   background: #0b3d91;
   color: white;
+  overflow-x: hidden;
 }
 
 h1 { margin-top: 20px; }
 
-.container {
-  margin: 20px auto;
-  width: 500px;
-  background: rgba(255,255,255,0.1);
-  padding: 20px;
-  border-radius: 15px;
+.container, #matchScreen {
+  width: 100%;
+  height: 100vh;
   position: relative;
+}
+
+.container {
+  display: block;
+  background: rgba(255,255,255,0.1);
 }
 
 button {
@@ -47,7 +52,7 @@ button {
   font-size: 14px;
 }
 
-#gameArea {
+#gameArea, #matchArea {
   margin-top: 20px;
   width: 100%;
   height: 200px;
@@ -64,20 +69,22 @@ button {
 </head>
 <body>
 
-<h1>⚾ 野球育成ガチャゲーム（失敗あり） ⚾</h1>
-
-<div class="container">
+<div id="mainScreen" class="container">
+<h1>⚾ 野球育成ガチャゲーム（全画面試合版） ⚾</h1>
   <button onclick="drawGacha()">単発ガチャ</button>
   <button onclick="drawTenGacha()">10連ガチャ</button>
   <button onclick="train()">トレーニング</button>
-  <button onclick="startMatch()">試合開始</button>
+  <button onclick="startMatchFullScreen()">試合開始</button>
 
   <div id="playerInfo">選手がいません</div>
   <div class="log" id="log"></div>
+</div>
 
-  <div id="gameArea">
-    <img id="pitcherImg" class="playerImg" src="pitcher.png" style="left:50px; bottom:20px; width:60px;">
-    <img id="batterImg" class="playerImg" src="batter.png" style="right:50px; bottom:20px; width:60px;">
+<div id="matchScreen" style="display:none; background:#0a1d3c;">
+  <button onclick="endMatch()" style="position:absolute; top:10px; right:10px; z-index:100;">終了</button>
+  <div id="matchArea" style="width:100%; height:100%; position:relative;">
+    <img id="pitcherImg" class="playerImg" src="pitcher.png" style="left:50px; bottom:20px; width:80px;">
+    <img id="batterImg" class="playerImg" src="batter.png" style="right:50px; bottom:20px; width:80px;">
     <img id="ballImg" class="ballImg" src="ball.png" style="left:90px; bottom:60px; width:20px; display:none;">
   </div>
 </div>
@@ -136,14 +143,12 @@ function drawTenGacha(){
 function train(){
   if(!player){ log("選手がいない！"); return; }
   if(Math.random() < 0.5){
-    // 成功
     let upSpeed = Math.floor(Math.random()*3);
     let upControl = Math.floor(Math.random()*3);
     player.speed += upSpeed;
     player.control += upControl;
     log(`💪 トレーニング成功！（球速+${upSpeed}, 制球+${upControl}）`);
   } else {
-    // 失敗
     let downSpeed = Math.floor(Math.random()*2)+1;
     let downControl = Math.floor(Math.random()*2)+1;
     player.speed = Math.max(0, player.speed - downSpeed);
@@ -153,10 +158,17 @@ function train(){
   updatePlayer();
 }
 
-function startMatch(){
+function startMatchFullScreen(){
   if(!player){ log("選手がいない！"); return; }
+  document.getElementById("mainScreen").style.display = "none";
+  document.getElementById("matchScreen").style.display = "block";
   log("⚾ 試合開始！投球中...");
   throwBall();
+}
+
+function endMatch(){
+  document.getElementById("matchScreen").style.display = "none";
+  document.getElementById("mainScreen").style.display = "block";
 }
 
 function throwBall(){
@@ -177,7 +189,7 @@ function throwBall(){
   },20);
 }
 
-document.getElementById("gameArea").addEventListener("click", ()=>{
+document.getElementById("matchArea").addEventListener("click", ()=>{
   if(!player) return;
   hitBall();
 });
@@ -193,7 +205,7 @@ function hitBall(){
     y += 2;
     ball.style.left = x + "px";
     ball.style.bottom = y + "px";
-    if(x > 400){
+    if(x > window.innerWidth){
       clearInterval(interval);
       ball.style.display = "none";
       log("試合結果を判定中...");
@@ -204,12 +216,10 @@ function hitBall(){
 
 function matchResult(){
   if(Math.random() < 0.5){
-    // 勝利
     player.speed += 2;
     player.control += 2;
     log("🎉 勝利！選手が成長した！");
   } else {
-    // 敗北
     player.speed = Math.max(0, player.speed - 2);
     player.control = Math.max(0, player.control - 2);
     log("😢 敗北...能力が少し下がった");
