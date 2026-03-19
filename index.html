@@ -2,17 +2,19 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>サバイバル横スクロール</title>
+<title>BlockSurvivor</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#87CEEB; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; overflow:hidden; }
   canvas { background:#87CEEB; display:block; border:2px solid #000; }
   #score { position:absolute; top:20px; left:20px; color:#fff; font-size:24px; font-weight:bold; }
+  #title { position:absolute; top:20px; right:20px; color:#fff; font-size:24px; font-weight:bold; }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas" width="800" height="400"></canvas>
 <div id="score">Score: 0</div>
+<div id="title">BlockSurvivor</div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -23,29 +25,38 @@ let score = 0;
 let gameOver = false;
 let spawnTimer = 0;
 let itemTimer = 0;
-let difficultyTimer = 0;
-let enemySpeed = 3;
-let enemySpawnRate = 120; //フレーム数
+let difficultyThreshold = 20;
+let enemySpeed = 2;
+let enemySpawnRate = 180; // 最初は簡単
 let items = [];
 let enemies = [];
 let bullets = [];
 
-// プレイヤー
 const player = {
   x:100, y:300, width:30, height:50, color:'#FF5555',
   dy:0, gravity:0.8, jumpPower:-12, onGround:true,
   speed:4, invincible:false
 };
 
-// イベント
 document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-// ゲームループ
+function drawBlockCharacter(x, y, headColor, bodyColor){
+  // 頭
+  ctx.fillStyle = headColor;
+  ctx.fillRect(x, y, 30, 20);
+  // 目
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x+5, y+5, 5,5);
+  ctx.fillRect(x+20, y+5, 5,5);
+  // 体
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(x, y+20, 30, 30);
+}
+
 function update(){
   if(gameOver) return;
 
-  // 背景
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#654321';
   ctx.fillRect(0,canvas.height-50,canvas.width,50);
@@ -53,8 +64,6 @@ function update(){
   // プレイヤー移動
   if((keys['a'] || keys['arrowleft']) && player.x>0) player.x -= player.speed;
   if((keys['d'] || keys['arrowright']) && player.x + player.width < canvas.width) player.x += player.speed;
-
-  // ジャンプ
   if((keys['w'] || keys['arrowup']) && player.onGround){
     player.dy = player.jumpPower;
     player.onGround = false;
@@ -62,105 +71,97 @@ function update(){
 
   player.dy += player.gravity;
   player.y += player.dy;
-
   if(player.y + player.height >= canvas.height-50){
     player.y = canvas.height-50-player.height;
-    player.dy = 0;
-    player.onGround = true;
+    player.dy=0;
+    player.onGround=true;
   }
 
-  // プレイヤー描画
-  ctx.fillStyle = player.invincible ? 'yellow' : player.color;
-  ctx.fillRect(player.x, player.y, player.width, player.height);
+  drawBlockCharacter(player.x, player.y, player.color, player.color);
 
   // 敵生成
   spawnTimer++;
   if(spawnTimer > enemySpawnRate){
     spawnTimer=0;
     const yPos = canvas.height-50-50;
-    enemies.push({x:canvas.width, y:yPos, width:30, height:50, color:'#5555FF', shootTimer:0});
+    enemies.push({x:canvas.width, y:yPos, color:'#5555FF', shootTimer:0});
   }
 
   // アイテム生成
   itemTimer++;
   if(itemTimer > 600){
     itemTimer=0;
-    const xPos = Math.random()*(canvas.width-30);
+    const xPos = Math.random()*(canvas.width-20);
     const yPos = Math.random()*(canvas.height-100);
     items.push({x:xPos, y:yPos, width:20, height:20, color:'gold', type:'invincible', duration:300});
   }
 
-  // 難易度アップ
-  difficultyTimer++;
-  if(difficultyTimer>600){
-    difficultyTimer=0;
-    if(enemySpeed<10) enemySpeed += 0.5;
-    if(enemySpawnRate>30) enemySpawnRate -=5;
+  // 難易度調整（スコア20ごと）
+  if(Math.floor(score) >= difficultyThreshold){
+    difficultyThreshold += 20;
+    enemySpeed += 0.5;
+    if(enemySpawnRate > 40) enemySpawnRate -=10;
   }
 
-  // 敵移動 & 弾生成
+  // 敵処理
   for(let i=enemies.length-1;i>=0;i--){
     const e = enemies[i];
     e.x -= enemySpeed;
 
-    // 弾生成
     e.shootTimer++;
     if(e.shootTimer > 90){
       e.shootTimer=0;
       bullets.push({x:e.x, y:e.y+20, width:10, height:10, color:'#FF0', dx:-6});
     }
 
-    ctx.fillStyle = e.color;
-    ctx.fillRect(e.x, e.y, e.width, e.height);
+    drawBlockCharacter(e.x, e.y, e.color, e.color);
 
-    if(e.x + e.width < 0) enemies.splice(i,1);
+    if(e.x+30<0) enemies.splice(i,1);
 
-    // 当たり判定
-    if(!player.invincible && player.x < e.x + e.width && player.x + player.width > e.x &&
-       player.y < e.y + e.height && player.y + player.height > e.y){
+    if(!player.invincible && player.x < e.x+30 && player.x +30 > e.x &&
+       player.y < e.y+50 && player.y+50 > e.y){
       gameOver = true;
       alert("Game Over! Score: "+Math.floor(score));
       location.reload();
     }
   }
 
-  // 弾移動
+  // 弾処理
   for(let i=bullets.length-1;i>=0;i--){
     const b = bullets[i];
     b.x += b.dx;
     ctx.fillStyle = b.color;
-    ctx.fillRect(b.x, b.y, b.width, b.height);
+    ctx.fillRect(b.x,b.y,b.width,b.height);
 
-    if(!player.invincible && player.x < b.x + b.width && player.x + player.width > b.x &&
-       player.y < b.y + b.height && player.y + player.height > b.y){
+    if(!player.invincible && player.x < b.x+b.width && player.x+30 > b.x &&
+       player.y < b.y+b.height && player.y+50 > b.y){
       gameOver = true;
       alert("Game Over! Score: "+Math.floor(score));
       location.reload();
     }
 
-    if(b.x + b.width < 0) bullets.splice(i,1);
+    if(b.x+b.width<0) bullets.splice(i,1);
   }
 
-  // アイテム表示 & 効果
+  // アイテム処理
   for(let i=items.length-1;i>=0;i--){
     const it = items[i];
     ctx.fillStyle = it.color;
-    ctx.fillRect(it.x, it.y, it.width, it.height);
+    ctx.fillRect(it.x,it.y,it.width,it.height);
 
-    if(player.x < it.x + it.width && player.x + player.width > it.x &&
-       player.y < it.y + it.height && player.y + player.height > it.y){
-      // アイテム取得
+    if(player.x < it.x+it.width && player.x+30 > it.x &&
+       player.y < it.y+it.height && player.y+50 > it.y){
       if(it.type=='invincible'){
-        player.invincible = true;
+        player.invincible=true;
         setTimeout(()=>{player.invincible=false;}, it.duration*16);
       }
-      score += 5;
+      score +=5;
       items.splice(i,1);
     }
   }
 
   // スコア
-  score += 0.02;
+  score +=0.02;
   document.getElementById('score').innerText = 'Score: '+Math.floor(score);
 
   requestAnimationFrame(update);
