@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>野球育成ガチャゲーム</title>
+<title>野球育成ガチャゲーム（10連対応）</title>
 <style>
 body {
   font-family: Arial;
@@ -15,7 +15,7 @@ h1 { margin-top: 20px; }
 
 .container {
   margin: 20px auto;
-  width: 350px;
+  width: 400px;
   background: rgba(255,255,255,0.1);
   padding: 20px;
   border-radius: 15px;
@@ -38,7 +38,7 @@ button {
 
 .log {
   margin-top: 15px;
-  height: 120px;
+  height: 180px;
   overflow-y: auto;
   background: rgba(0,0,0,0.3);
   padding: 10px;
@@ -49,10 +49,11 @@ button {
 </head>
 <body>
 
-<h1>⚾ 野球育成ガチャ ⚾</h1>
+<h1>⚾ 野球育成ガチャ（10連対応） ⚾</h1>
 
 <div class="container">
-  <button onclick="drawGacha()">ガチャ</button>
+  <button onclick="drawGacha()">単発ガチャ</button>
+  <button onclick="drawTenGacha()">10連ガチャ</button>
   <button onclick="train()">トレーニング</button>
   <button onclick="match()">試合</button>
 
@@ -79,7 +80,64 @@ function log(text){
 function drawGacha(){
   let rand = Math.random()*100;
   let sum = 0;
-
   for(let p of players){
     sum += p.rate;
     if(rand <= sum){
+      player = {...p};
+      updatePlayer();
+      log("🎉 " + p.name + "を獲得！");
+      break;
+    }
+  }
+}
+
+function drawTenGacha(){
+  log("🔹 10連ガチャ開始 🔹");
+  for(let i=0;i<10;i++){
+    let rand = Math.random()*100;
+    let sum = 0;
+    for(let p of players){
+      sum += p.rate;
+      if(rand <= sum){
+        player = {...p};
+        updatePlayer();
+        log(`(${i+1}) ${p.name} を獲得！`);
+        break;
+      }
+    }
+  }
+}
+
+function updatePlayer(){
+  if(!player) return;
+  document.getElementById("player").innerHTML =
+    `名前: ${player.name}<br>球速: ${player.speed} km/h<br>コントロール: ${player.control}`;
+}
+
+function train(){
+  if(!player){ log("選手がいない！"); return; }
+  let upSpeed = Math.floor(Math.random()*3);
+  let upControl = Math.floor(Math.random()*3);
+  player.speed += upSpeed;
+  player.control += upControl;
+  updatePlayer();
+  log("💪 トレーニング成功！（球速+"+upSpeed+", 制球+"+upControl+")");
+}
+
+function match(){
+  if(!player){ log("選手がいない！"); return; }
+  let power = player.speed + player.control;
+  let enemy = Math.random()*200;
+  if(power > enemy){
+    log("🏆 試合勝利！さらに成長！");
+    player.speed += 2;
+    player.control += 2;
+  } else {
+    log("😢 試合敗北...");
+  }
+  updatePlayer();
+}
+</script>
+
+</body>
+</html>
