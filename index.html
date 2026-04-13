@@ -2,182 +2,70 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>BlockSurvivor 統合版</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PvP Arena</title>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:#87CEEB; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; }
-#menu { text-align:center; }
-button { padding:20px; margin:10px; font-size:24px; cursor:pointer; }
-canvas { display:none; border:2px solid #000; background:#87CEEB; }
-#ui1, #ui2, #effects { position:absolute; color:#fff; font-weight:bold; font-size:20px; }
-#ui1 { top:20px; left:20px; }
-#ui2 { bottom:20px; left:20px; }
-#effects { bottom:20px; right:20px; text-align:right; }
+body {
+  margin: 0;
+  background: #111;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+canvas {
+  background: #222;
+  display: block;
+  margin: 20px auto;
+  border: 2px solid white;
+}
+#info {
+  margin-top: 10px;
+}
 </style>
 </head>
 <body>
-<div id="menu">
-  <h1>BlockSurvivor</h1>
-  <button onclick="startGame('single')">1人プレイ（CPU戦）</button>
-  <button onclick="startGame('pvp')">2人対戦</button>
+<h1>PvP Arena</h1>
+<canvas id="game" width="800" height="500"></canvas>
+<div id="info">
+<p>Player1: WASD + F（攻撃）</p>
+<p>Player2: 矢印キー + /（攻撃）</p>
 </div>
 
-<canvas id="gameCanvas" width="800" height="400"></canvas>
-<div id="ui1">1P HP: 100 | Ammo: 3</div>
-<div id="ui2">2P HP: 100 | Ammo: 3</div>
-<div id="effects"></div>
-
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let keys = {};
-document.addEventListener('keydown', e => keys[e.key.toLowerCase()]=true);
-document.addEventListener('keyup', e => keys[e.key.toLowerCase()]=false);
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-let mode='single';
-let player1, player2, bullets=[], items=[], spawnTimer=0;
-let effectsText="";
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
-// モード選択画面からゲーム開始
-function startGame(selectedMode){
-  mode=selectedMode;
-  document.getElementById('menu').style.display='none';
-  canvas.style.display='block';
-  document.getElementById('ui1').style.display='block';
-  document.getElementById('ui2').style.display='block';
-  document.getElementById('effects').style.display='block';
-  initGame();
-  update();
+function createPlayer(x, y, color, controls) {
+  return {
+    x, y,
+    w: 40,
+    h: 40,
+    color,
+    speed: 4,
+    hp: 100,
+    attackCooldown: 0,
+    controls
+  };
 }
 
-// ゲーム初期化
-function initGame(){
-  player1 = {x:100, y:300, width:30, height:50, color:'#FF5555', dy:0, gravity:0.8, jump:-12, onGround:true, HP:100, lastHit:0, lastHeal:0, ammo:3, lastReload:Date.now(), lastShot:0};
-  if(mode==='pvp'){
-    player2 = {x:600, y:300, width:30, height:50, color:'#5555FF', dy:0, gravity:0.8, jump:-12, onGround:true, HP:100, lastHit:0, lastHeal:0, ammo:3, lastReload:Date.now(), lastShot:0};
-  } else {
-    // CPU
-    player2 = {x:600, y:300, width:30, height:50, color:'#5555FF', dy:0, gravity:0.8, jump:-12, onGround:true, HP:100, lastHit:0, lastHeal:0, ammo:3, lastReload:Date.now(), lastShot:0};
-  }
-  bullets=[];
-  items=[];
-  spawnTimer=0;
-}
+const p1 = createPlayer(100, 200, "cyan", {
+  up: "w", down: "s", left: "a", right: "d", attack: "f"
+});
 
-// 背景描画
-function drawBackground(){
-  ctx.fillStyle='#87CEEB'; ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#654321'; ctx.fillRect(0,canvas.height-50,canvas.width,50);
-  ctx.fillStyle='#333';
-  ctx.fillRect(100,canvas.height-150,50,100);
-  ctx.fillRect(200,canvas.height-180,70,130);
-  ctx.fillRect(320,canvas.height-160,60,110);
-  ctx.fillRect(450,canvas.height-200,80,150);
-  ctx.fillRect(580,canvas.height-170,50,120);
-}
+const p2 = createPlayer(660, 200, "orange", {
+  up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", attack: "/"
+});
 
-// プレイヤー描画
-function drawPlayer(p){
-  ctx.fillStyle=p.color;
-  ctx.beginPath(); ctx.arc(p.x+15,p.y+10,10,0,Math.PI*2); ctx.fill();
-  ctx.fillRect(p.x+5,p.y+20,20,30);
-  ctx.fillStyle='#fff';
-  ctx.beginPath(); ctx.arc(p.x+10,p.y+10,3,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(p.x+20,p.y+10,3,0,Math.PI*2); ctx.fill();
-}
+function movePlayer(p) {
+  if (keys[p.controls.up]) p.y -= p.speed;
+  if (keys[p.controls.down]) p.y += p.speed;
+  if (keys[p.controls.left]) p.x -= p.speed;
+  if (keys[p.controls.right]) p.x += p.speed;
 
-// 弾撃つ
-function shoot(p,dir){
-  if(p.ammo>0){
-    bullets.push({x:p.x+10, y:p.y+20, dx:dir*6, owner:p});
-    p.ammo--;
-    p.lastShot=Date.now();
-  }
-}
-
-// CPU弾処理
-function cpuAction(){
-  if(player2.HP>0){
-    // CPUはplayer1を追う
-    if(player2.x>player1.x) player2.x-=2;
-    else if(player2.x<player1.x) player2.x+=2;
-    // 攻撃
-    if(Date.now()-player2.lastShot>800) shoot(player2,player2.x>player1.x?-1:1);
-  }
-}
-
-// 弾・HP回復・リロード・アイテム描画
-function handleBullets(now){
-  for(let i=bullets.length-1;i>=0;i--){
-    const b=bullets[i]; b.x+=b.dx;
-    ctx.fillStyle=b.owner===player1?'#FFAAAA':'#AAAAFF';
-    ctx.fillRect(b.x,b.y,10,10);
-    const targets = [b.owner===player1?player2:player1];
-    targets.forEach(p=>{
-      if(p.HP>0 && b.x<p.x+p.width && b.x+10>p.x && b.y<p.y+p.height && b.y+10>p.y){
-        p.HP-=20; p.lastHit=now; bullets.splice(i,1);
-      }
-    });
-    if(b.x<0 || b.x>canvas.width) bullets.splice(i,1);
-  }
-}
-
-// プレイヤー更新
-function updatePlayer(p, isPlayer1){
-  if(isPlayer1){
-    if(keys['a'] && p.x>0) p.x-=4;
-    if(keys['d'] && p.x+p.width<canvas.width) p.x+=4;
-    if(keys['w'] && p.onGround){p.dy=p.jump; p.onGround=false;}
-    if(keys['s']){} // しゃがみ
-    if(keys['e']) shoot(p,1);
-  } else {
-    if(mode==='pvp'){
-      if(keys['arrowleft'] && p.x>0) p.x-=4;
-      if(keys['arrowright'] && p.x+p.width<canvas.width) p.x+=4;
-      if(keys['arrowup'] && p.onGround){p.dy=p.jump; p.onGround=false;}
-      if(keys['arrowdown']){}
-      if(keys['l']) shoot(p,-1);
-    } else cpuAction();
-  }
-
-  // 弾リロード 3秒毎に1発
-  if(p.ammo<3 && Date.now()-p.lastReload>=3000){p.ammo++; p.lastReload=Date.now();}
-
-  // ジャンプ・重力
-  p.dy+=p.gravity; p.y+=p.dy;
-  if(p.y+p.height>=canvas.height-50){p.y=canvas.height-50-p.height; p.dy=0; p.onGround=true;}
-  drawPlayer(p);
-
-  // HP回復
-  if(Date.now()-p.lastHit>3000 && (!p.lastHeal || Date.now()-p.lastHeal>3000)){
-    p.HP=Math.min(p.HP+5,100);
-    p.lastHeal=Date.now();
-  }
-}
-
-// メイン更新
-function update(){
-  const now=Date.now();
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawBackground();
-
-  updatePlayer(player1,true);
-  updatePlayer(player2,false);
-  handleBullets(now);
-
-  // UI
-  document.getElementById('ui1').innerText='1P HP: '+player1.HP+' | Ammo: '+player1.ammo;
-  document.getElementById('ui2').innerText=(mode==='pvp'?'2P':'CPU')+' HP: '+player2.HP+' | Ammo: '+player2.ammo;
-  document.getElementById('effects').innerText=effectsText;
-
-  // 勝敗判定
-  if(player1.HP<=0 || player2.HP<=0){
-    alert((player1.HP<=0? (mode==='pvp'?'2P':'CPU'):'1P')+'の勝利！');
-    location.reload();
-  }
-
-  requestAnimationFrame(update);
-}
-</script>
-</body>
+  p.x = Math.max(0, Math.min(canvas.width - p.w, p.x));
+  p.y = Math.max(0, Math.min(canvas.height - p.h, p.y));
 </html>
