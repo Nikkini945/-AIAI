@@ -2,70 +2,190 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PvP Arena</title>
+<title>NEON ROGUE: HUMANS</title>
 <style>
-body {
-  margin: 0;
-  background: #111;
-  color: white;
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-canvas {
-  background: #222;
-  display: block;
-  margin: 20px auto;
-  border: 2px solid white;
-}
-#info {
-  margin-top: 10px;
-}
+body{margin:0;background:#0b0b0b;color:white;text-align:center;font-family:sans-serif;}
+canvas{background:#111;display:block;margin:10px auto;border:2px solid #fff;}
+button{margin:5px;padding:10px;}
 </style>
 </head>
 <body>
-<h1>PvP Arena</h1>
-<canvas id="game" width="800" height="500"></canvas>
-<div id="info">
-<p>Player1: WASD + F（攻撃）</p>
-<p>Player2: 矢印キー + /（攻撃）</p>
-</div>
+<h2>NEON ROGUE: HUMANS</h2>
+<div id="menu"></div>
+<canvas id="game" width="800" height="500" style="display:none;"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const menu=document.getElementById("menu");
 
-const keys = {};
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
+let player, bullets=[], enemies=[], keys={}, mouse={x:0,y:0,down:false};
+let xp=0, level=1, gameState="menu";
 
-function createPlayer(x, y, color, controls) {
-  return {
-    x, y,
-    w: 40,
-    h: 40,
-    color,
-    speed: 4,
-    hp: 100,
-    attackCooldown: 0,
-    controls
-  };
+document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keyup",e=>keys[e.key]=false);
+
+canvas.addEventListener("mousemove",e=>{
+ const rect=canvas.getBoundingClientRect();
+ mouse.x=e.clientX-rect.left;
+ mouse.y=e.clientY-rect.top;
+});
+canvas.addEventListener("mousedown",()=>mouse.down=true);
+canvas.addEventListener("mouseup",()=>mouse.down=false);
+
+const chars=[
+ {name:"バランス",hp:100,speed:3,atk:1},
+ {name:"スピード",hp:70,speed:4,atk:1},
+ {name:"タンク",hp:150,speed:2,atk:1},
+ {name:"火力",hp:60,speed:2.5,atk:2},
+ {name:"ギャンブル",hp:Math.random()*120+50,speed:Math.random()*3+2,atk:Math.random()*2+0.5}
+];
+
+function showMenu(){
+ menu.innerHTML="<h3>キャラ選択</h3>";
+ chars.forEach(c=>{
+  let btn=document.createElement("button");
+  btn.textContent=c.name;
+  btn.onclick=()=>startGame(c);
+  menu.appendChild(btn);
+ });
 }
 
-const p1 = createPlayer(100, 200, "cyan", {
-  up: "w", down: "s", left: "a", right: "d", attack: "f"
-});
+function startGame(c){
+ player={x:400,y:250,r:10,hp:c.hp,speed:c.speed,atk:c.atk,dash:0,cool:0};
+ bullets=[]; enemies=[]; xp=0; level=1;
+ gameState="game";
+ menu.style.display="none";
+ canvas.style.display="block";
+ loop();
+}
 
-const p2 = createPlayer(660, 200, "orange", {
-  up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", attack: "/"
-});
+function spawnEnemy(){
+ let x=Math.random()*800,y=Math.random()*500;
+ enemies.push({x,y,r:8,speed:1.5+Math.random()});
+}
 
-function movePlayer(p) {
-  if (keys[p.controls.up]) p.y -= p.speed;
-  if (keys[p.controls.down]) p.y += p.speed;
-  if (keys[p.controls.left]) p.x -= p.speed;
-  if (keys[p.controls.right]) p.x += p.speed;
+function shoot(){
+ if(player.cool>0) return;
+ if(mouse.down){
+  let dx=mouse.x-player.x,dy=mouse.y-player.y;
+  let d=Math.sqrt(dx*dx+dy*dy);
+  bullets.push({x:player.x,y:player.y,vx:dx/d*6,vy:dy/d*6});
+  player.cool=15;
+ }
+}
 
-  p.x = Math.max(0, Math.min(canvas.width - p.w, p.x));
-  p.y = Math.max(0, Math.min(canvas.height - p.h, p.y));
+function update(){
+ let dx=0,dy=0;
+ if(keys["w"])dy--;
+ if(keys["s"])dy++;
+ if(keys["a"])dx--;
+ if(keys["d"])dx++;
+
+ player.x+=dx*player.speed;
+ player.y+=dy*player.speed;
+
+ if(keys["Shift"] && player.dash<=0){
+  player.dash=20;
+ }
+ if(player.dash>0) player.dash--;
+
+ shoot();
+ if(player.cool>0) player.cool--;
+
+ bullets.forEach(b=>{b.x+=b.vx; b.y+=b.vy;});
+
+ enemies.forEach(e=>{
+  let dx=player.x-e.x,dy=player.y-e.y;
+  let d=Math.sqrt(dx*dx+dy*dy);
+  e.x+=dx/d*e.speed;
+  e.y+=dy/d*e.speed;
+
+  if(d<15 && player.dash<=0){player.hp-=1;}
+ });
+
+ bullets.forEach(b=>{
+  enemies.forEach(e=>{
+   let dx=b.x-e.x,dy=b.y-e.y;
+   if(Math.sqrt(dx*dx+dy*dy)<10){
+    e.dead=true;
+    xp++;
+   }
+  });
+ });
+
+ enemies=enemies.filter(e=>!e.dead);
+
+ if(xp>=10){
+  xp=0; level++;
+  levelUp();
+ }
+}
+
+function levelUp(){
+ gameState="level";
+ const choices=[
+  ()=>player.atk+=0.5,
+  ()=>player.speed+=0.5,
+  ()=>{player.hp*=0.5; player.atk*=2;}
+ ];
+
+ menu.style.display="block";
+ menu.innerHTML="<h3>強化選択</h3>";
+
+ ["攻撃UP","速度UP","ギャンブル"].forEach((text,i)=>{
+  let btn=document.createElement("button");
+  btn.textContent=text;
+  btn.onclick=()=>{
+   choices[i]();
+   menu.style.display="none";
+   gameState="game";
+   loop();
+  };
+  menu.appendChild(btn);
+ });
+}
+
+function draw(){
+ ctx.clearRect(0,0,800,500);
+
+ ctx.fillStyle="cyan";
+ ctx.fillRect(player.x-5,player.y-10,10,20);
+ ctx.beginPath();
+ ctx.arc(player.x,player.y-15,5,0,Math.PI*2);
+ ctx.fill();
+
+ ctx.fillStyle="white";
+ bullets.forEach(b=>ctx.fillRect(b.x,b.y,3,3));
+
+ ctx.fillStyle="red";
+ enemies.forEach(e=>{
+  ctx.beginPath();
+  ctx.arc(e.x,e.y,8,0,Math.PI*2);
+  ctx.fill();
+ });
+
+ ctx.fillText("HP:"+Math.floor(player.hp),10,20);
+ ctx.fillText("Lv:"+level,700,20);
+}
+
+function loop(){
+ if(gameState!=="game") return;
+
+ update();
+ draw();
+
+ if(player.hp<=0){
+  ctx.fillText("GAME OVER",300,250);
+  return;
+ }
+
+ if(Math.random()<0.03) spawnEnemy();
+
+ requestAnimationFrame(loop);
+}
+
+showMenu();
+</script>
+</body>
 </html>
